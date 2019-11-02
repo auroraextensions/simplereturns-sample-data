@@ -18,30 +18,72 @@ declare(strict_types=1);
 
 namespace AuroraExtensions\SimpleReturnsSampleData\Setup\Patch\Data;
 
+use Exception;
 use AuroraExtensions\SimpleReturns\{
     Api\Data\SimpleReturnInterface,
     Api\Data\SimpleReturnInterfaceFactory,
+    Api\SimpleReturnRepositoryInterface,
+    Model\Security\Token as Tokenizer,
     Setup\Patch\Data\CreateSimpleReturnProductAttribute
 };
-use Magento\Framework\{
-    Setup\ModuleDataSetupInterface,
-    Setup\Patch\DataPatchInterface,
-    Setup\Patch\PatchRevertableInterface
+use AuroraExtensions\SimpleReturnsSampleData\{
+    Component\DataContainerTrait,
+    Component\LoggerTrait
 };
+use Magento\Framework\{
+    DataObject,
+    DataObject\Factory as DataObjectFactory,
+    Setup\ModuleDataSetupInterface,
+    Setup\Patch\DataPatchInterface
+};
+use Magento\Store\Model\StoreManagerInterface;
+use Psr\Log\LoggerInterface;
 
-class CreateRmaSampleData implements DataPatchInterface, PatchRevertableInterface
+class CreateRmaSampleData implements DataPatchInterface
 {
+    use DataContainerTrait, LoggerTrait;
+
     /** @property ModuleDataSetupInterface $moduleDataSetup */
-    protected $moduleDataSetup;
+    private $moduleDataSetup;
+
+    /** @property DataObjectFactory $dataObjectFactory */
+    private $dataObjectFactory;
+
+    /** @property SimpleReturnInterfaceFactory $rmaFactory */
+    private $rmaFactory;
+
+    /** @property SimpleReturnRepositoryInterface $rmaRepository */
+    private $rmaRepository;
+
+    /** @property StoreManagerInterface $storeManager */
+    private $storeManager;
 
     /**
      * @param ModuleDataSetupInterface $moduleDataSetup
+     * @param DataObjectFactory $dataObjectFactory
+     * @param LoggerInterface $logger
+     * @param SimpleReturnInterfaceFactory $rmaFactory
+     * @param SimpleReturnRepositoryInterface $rmaRepository
+     * @param StoreManagerInterface $storeManager
+     * @param array $data
      * @return void
      */
     public function __construct(
-        ModuleDataSetupInterface $moduleDataSetup
+        ModuleDataSetupInterface $moduleDataSetup,
+        DataObjectFactory $dataObjectFactory,
+        LoggerInterface $logger,
+        SimpleReturnInterfaceFactory $rmaFactory,
+        SimpleReturnRepositoryInterface $rmaRepository,
+        StoreManagerInterface $storeManager,
+        array $data = []
     ) {
         $this->moduleDataSetup = $moduleDataSetup;
+        $this->dataObjectFactory = $dataObjectFactory;
+        $this->logger = $logger;
+        $this->rmaFactory = $rmaFactory;
+        $this->rmaRepository = $rmaRepository;
+        $this->storeManager = $storeManager;
+        $this->container = $this->dataObjectFactory->create($data);
     }
 
     /**
@@ -67,12 +109,29 @@ class CreateRmaSampleData implements DataPatchInterface, PatchRevertableInterfac
      */
     public function apply()
     {
-    }
+        $this->moduleDataSetup
+            ->startSetup();
 
-    /**
-     * {@inheritdoc}
-     */
-    public function revert()
-    {
+        /** @var array $data */
+        $data = $this->getContainer()
+            ->toArray();
+
+        /** @var array $item */
+        foreach ($data as $item) {
+            try {
+                /** @var SimpleReturnInterface $rma */
+                $rma = $this->rmaFactory
+                    ->create()
+                    ->addData($item)
+                    ->setToken(Tokenizer::createToken());
+
+                $this->rmaRepository->save($rma);
+            } catch (Exception $e) {
+                $this->logger->critical($e->getMessage());
+            }
+        }
+
+        $this->moduleDataSetup
+            ->endSetup();
     }
 }
