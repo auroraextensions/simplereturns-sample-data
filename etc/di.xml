@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * di.xml
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the MIT License, which
+ * is bundled with this package in the file LICENSE.txt.
+ *
+ * It is also available on the Internet at the following URL:
+ * https://docs.auroraextensions.com/magento/extensions/2.x/sampledata/LICENSE.txt
+ *
+ * @package       AuroraExtensions_SimpleReturnsSampleData
+ * @copyright     Copyright (C) 2019 Aurora Extensions <support@auroraextensions.com>
+ * @license       MIT License
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="AuroraExtensions\SimpleReturnsSampleData\Setup\Patch\Data\CreateRmaSampleData">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="0" xsi:type="array">
+                    <item name="status" xsi:type="string">pending</item>
+                    <item name="reason" xsi:type="string">wrong_item</item>
+                    <item name="resolution" xsi:type="string">exchange</item>
+                    <item name="comments" xsi:type="string"><![CDATA[The items received are different than what I ordered.]]></item>
+                </item>
+                <item name="1" xsi:type="array">
+                    <item name="status" xsi:type="string">approved</item>
+                    <item name="reason" xsi:type="string">missing_broken_parts</item>
+                    <item name="resolution" xsi:type="string">refund</item>
+                    <item name="comments" xsi:type="string"><![CDATA[I received the package this morning and it contains broken items.]]></item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
+</config>
