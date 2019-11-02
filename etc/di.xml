@@ -41,4 +41,22 @@
             </argument>
         </arguments>
     </type>
+    <type name="AuroraExtensions\SimpleReturnsSampleData\Setup\Patch\Data\CreatePackageSampleData">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="0" xsi:type="array">
+                    <item name="carrier_code" xsi:type="string">ups</item>
+                    <item name="method_code" xsi:type="string">03</item>
+                    <item name="container_type" xsi:type="string">00</item>
+                    <item name="remote_ip" xsi:type="string">146.148.0.4</item>
+                </item>
+                <item name="1" xsi:type="array">
+                    <item name="carrier_code" xsi:type="string">fedex</item>
+                    <item name="method_code" xsi:type="string">FEDEX_GROUND</item>
+                    <item name="container_type" xsi:type="string">YOUR_PACKAGING</item>
+                    <item name="remote_ip" xsi:type="string">89.207.224.10</item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
 </config>
