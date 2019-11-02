@@ -21,16 +21,22 @@
         <arguments>
             <argument name="data" xsi:type="array">
                 <item name="0" xsi:type="array">
+                    <item name="store_id" xsi:type="number">0</item>
+                    <item name="order_id" xsi:type="number">1</item>
                     <item name="status" xsi:type="string">pending</item>
                     <item name="reason" xsi:type="string">wrong_item</item>
                     <item name="resolution" xsi:type="string">exchange</item>
                     <item name="comments" xsi:type="string"><![CDATA[The items received are different than what I ordered.]]></item>
+                    <item name="remote_ip" xsi:type="string">216.239.32.5</item>
                 </item>
                 <item name="1" xsi:type="array">
+                    <item name="store_id" xsi:type="number">0</item>
+                    <item name="order_id" xsi:type="number">2</item>
                     <item name="status" xsi:type="string">approved</item>
                     <item name="reason" xsi:type="string">missing_broken_parts</item>
                     <item name="resolution" xsi:type="string">refund</item>
                     <item name="comments" xsi:type="string"><![CDATA[I received the package this morning and it contains broken items.]]></item>
+                    <item name="remote_ip" xsi:type="string">66.249.64.9</item>
                 </item>
             </argument>
         </arguments>
