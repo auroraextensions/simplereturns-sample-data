@@ -140,9 +140,10 @@ class CreatePackageSampleData implements DataPatchInterface
                     ->addData($data[$index++])
                     ->setRmaId((int) $rma->getId())
                     ->setToken(Tokenizer::createToken());
-                $this->packageRepository->save($package);
 
-                $rma->setPackageId((int) $package->getId());
+                $rma->setPackageId(
+                    $this->packageRepository->save($package)
+                );
                 $this->rmaRepository->save($rma);
             } catch (Exception $e) {
                 $this->logger->critical($e->getMessage());
