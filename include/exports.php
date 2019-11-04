@@ -15,6 +15,10 @@
  * @license       MIT License
  */
 
+if (!defined('DS')) {
+    define('DS', '/');
+}
+
 if (!defined('SIMPLERETURNS_SAMPLEDATA_MEDIA_DIR')) {
     define('SIMPLERETURNS_SAMPLEDATA_MEDIA_DIR', dirname(__DIR__) . '/media');
 }
