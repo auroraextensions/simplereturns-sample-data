@@ -11,7 +11,7 @@ Sample data for AuroraExtensions\_SimpleReturns.
 
 Before installing, please verify the following:
 
-+ Installed and configured [`AuroraExtensions_SimpleReturns`](https://github.com/auroraextensions/simplereturns.git)
++ Installed and configured [`AuroraExtensions_SimpleReturns`](https://github.com/auroraextensions/simplereturns)
 + At least two (2) orders are stored in the DB
 + The media directory is writable
 
