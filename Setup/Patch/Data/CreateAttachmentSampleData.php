@@ -34,16 +34,25 @@ use AuroraExtensions\SimpleReturnsSampleData\{
     Component\LoggerTrait
 };
 use Magento\Framework\{
+    App\Filesystem\DirectoryList,
     DataObject,
     DataObject\Factory as DataObjectFactory,
+    Filesystem,
     Setup\ModuleDataSetupInterface,
     Setup\Patch\DataPatchInterface
+};
+use Magento\MediaStorage\{
+    Model\File\Uploader,
+    Model\File\UploaderFactory
 };
 use Psr\Log\LoggerInterface;
 
 class CreateAttachmentSampleData implements DataPatchInterface
 {
     use DataContainerTrait, LoggerTrait;
+
+    /** @constant string SAVE_PATH */
+    public const SAVE_PATH = '/simplereturns/';
 
     /** @property ModuleDataSetupInterface $moduleDataSetup */
     private $moduleDataSetup;
@@ -57,6 +66,12 @@ class CreateAttachmentSampleData implements DataPatchInterface
     /** @property CollectionFactory $collectionFactory */
     private $collectionFactory;
 
+    /** @property Filesystem $filesystem */
+    private $filesystem;
+
+    /** @property UploaderFactory $fileUploaderFactory */
+    private $fileUploaderFactory;
+
     /** @property SimpleReturnRepositoryInterface $rmaRepository */
     private $rmaRepository;
 
@@ -66,6 +81,8 @@ class CreateAttachmentSampleData implements DataPatchInterface
      * @param AttachmentRepositoryInterface $attachmentRepository
      * @param CollectionFactory $collectionFactory
      * @param DataObjectFactory $dataObjectFactory
+     * @param Filesystem $filesystem
+     * @param UploaderFactory $fileUploaderFactory
      * @param LoggerInterface $logger
      * @param SimpleReturnRepositoryInterface $rmaRepository
      * @param array $data
@@ -77,6 +94,8 @@ class CreateAttachmentSampleData implements DataPatchInterface
         AttachmentRepositoryInterface $attachmentRepository,
         CollectionFactory $collectionFactory,
         DataObjectFactory $dataObjectFactory,
+        Filesystem $filesystem,
+        UploaderFactory $fileUploaderFactory,
         LoggerInterface $logger,
         SimpleReturnRepositoryInterface $rmaRepository,
         array $data = []
@@ -86,6 +105,8 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $this->attachmentRepository = $attachmentRepository;
         $this->collectionFactory = $collectionFactory;
         $this->container = $dataObjectFactory->create($data);
+        $this->filesystem = $filesystem;
+        $this->fileUploaderFactory = $fileUploaderFactory;
         $this->logger = $logger;
         $this->rmaRepository = $rmaRepository;
     }
@@ -131,7 +152,12 @@ class CreateAttachmentSampleData implements DataPatchInterface
         /** @var SimpleReturnInterface $rma */
         foreach ($items as $rma) {
             try {
-                $this->addAttachments($rma, $data[$index++]);
+                /** @var array $config */
+                $config = $data[$index++] + [
+                    'rma_id' => $rma->getId(),
+                ];
+
+                $this->addMediaFiles($config);
             } catch (Exception $e) {
                 $this->logger->critical($e->getMessage());
             }
@@ -142,29 +168,120 @@ class CreateAttachmentSampleData implements DataPatchInterface
     }
 
     /**
-     * @param SimpleReturnInterface $rma
      * @param array $data
-     * @return SimpleReturnInterface
+     * @return DataPatchInterface
      */
-    private function addAttachments(
-        SimpleReturnInterface $rma,
-        array $data = []
-    ): void
+    private function addMediaFiles(array $data = []): DataPatchInterface
     {
         /** @var array $file */
         foreach ($data as $file) {
-            try {
-                /** @var AttachmentInterface $attachment */
-                $attachment = $this->attachmentFactory
-                    ->create()
-                    ->addData($file)
-                    ->setRmaId((int) $rma->getId())
-                    ->setToken(Tokenizer::createToken());
+            /** @var string $thumbnail */
+            $thumbnail = $file['thumbnail'];
 
-                $this->attachmentRepository->save($attachment);
-            } catch (Exception $e) {
-                $this->logger->critical($e->getMessage());
-            }
+            /** @var string $tmpFile */
+            $tmpFile = $this->createThumbTmpFile($thumbnail);
+
+            /** @var array $info */
+            $info = [
+                'name' => $file['filename'],
+                'path' => $file['filepath'],
+                'size' => $file['filesize'],
+                'type' => $file['mimetype'],
+                'tmp_name' => $tmpFile,
+            ];
+
+            /** @var Uploader $uploader */
+            $uploader = $this->fileUploaderFactory
+                ->create(['fileId' => $info])
+                ->setAllowedExtensions($this->getFileExtensions())
+                ->setAllowCreateFolders(true)
+                ->setAllowRenameFiles(true)
+                ->setFilesDispersion(true);
+
+            /** @var string $mediaPath */
+            $mediaPath = $this->getMediaAbsolutePath();
+
+            /** @var string $savePath */
+            $savePath = $mediaPath . static::SAVE_PATH;
+
+            /** @var array $result */
+            $result = $uploader->save($savePath, $file['filename']);
+
+            /** @var array $attachData */
+            $attachData = [
+                'filename' => $result['name'],
+                'filepath' => $result['file'],
+                'filesize' => $result['size'],
+                'mimetype' => $result['type'],
+                'thumbnail' => $thumbnail,
+                'token' => Tokenizer::createToken(),
+            ];
+
+            /** @var AttachmentInterface $attachment */
+            $attachment = $this->attachmentFactory
+                ->create()
+                ->addData($attachData);
+            $this->attachmentRepository->save($attachment);
+
         }
+
+        return $this;
+    }
+
+    /**
+     * @param string $path
+     * @return string
+     */
+    private function createThumbTmpFile(string $path): string
+    {
+        /** @var resource $tmpFile */
+        $tmpFile = tmpfile();
+
+        /** @var string $filePath */
+        $filePath = $this->getLocalMediaAbsPath() . $path;
+
+        /** @var resource $handle */
+        $handle = fopen($filePath, 'r');
+
+        /** @var string $content */
+        $content = '';
+
+        while (!feof($handle)) {
+            $content .= fread($handle, 4096);
+        }
+
+        fwrite($tmpFile, $content);
+        fclose($handle);
+
+        return stream_get_meta_data($tmpFile)['uri'];
+    }
+
+    /**
+     * @return string
+     */
+    private function getMediaAbsolutePath(): string
+    {
+        /** @var string $mediaPath */
+        $mediaPath = $this->filesystem
+            ->getDirectoryRead(DirectoryList::MEDIA)
+            ->getAbsolutePath();
+
+        return rtrim($mediaPath, DS);
+    }
+
+    /**
+     * @return string
+     */
+    private function getLocalMediaAbsPath(): string
+    {
+        return SIMPLERETURNS_SAMPLEDATA_MEDIA_DIR;
+    }
+
+    /**
+     * @return array
+     */
+    private function getFileExtensions(): array
+    {
+        return ['jpg', 'jpeg', 'gif', 'png'];
     }
 }

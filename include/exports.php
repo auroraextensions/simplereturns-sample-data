@@ -1,6 +1,6 @@
 <?php
 /**
- * registration.php
+ * exports.php
  *
  * NOTICE OF LICENSE
  *
@@ -14,12 +14,11 @@
  * @copyright     Copyright (C) 2019 Aurora Extensions <support@auroraextensions.com>
  * @license       MIT License
  */
-use Magento\Framework\Component\ComponentRegistrar;
 
-ComponentRegistrar::register(
-    ComponentRegistrar::MODULE,
-    'AuroraExtensions_SimpleReturnsSampleData',
-    __DIR__
-);
+if (!defined('DS')) {
+    define('DS', '/');
+}
 
-require_once __DIR__ . '/include/exports.php';
+if (!defined('SIMPLERETURNS_SAMPLEDATA_MEDIA_DIR')) {
+    define('SIMPLERETURNS_SAMPLEDATA_MEDIA_DIR', dirname(__DIR__) . '/media');
+}
