@@ -31,13 +31,16 @@ use AuroraExtensions\SimpleReturns\{
 };
 use AuroraExtensions\SimpleReturnsSampleData\{
     Component\DataContainerTrait,
-    Component\LoggerTrait
+    Component\LoggerTrait,
+    Exception\ExceptionFactory
 };
 use Magento\Framework\{
     App\Filesystem\DirectoryList,
     DataObject,
     DataObject\Factory as DataObjectFactory,
+    Exception\LocalizedException,
     Filesystem,
+    Image\AdapterFactory,
     Setup\ModuleDataSetupInterface,
     Setup\Patch\DataPatchInterface
 };
@@ -66,11 +69,17 @@ class CreateAttachmentSampleData implements DataPatchInterface
     /** @property CollectionFactory $collectionFactory */
     private $collectionFactory;
 
+    /** @property ExceptionFactory $exceptionFactory */
+    private $exceptionFactory;
+
     /** @property Filesystem $filesystem */
     private $filesystem;
 
     /** @property UploaderFactory $fileUploaderFactory */
     private $fileUploaderFactory;
+
+    /** @property AdapterFactory $imageFactory */
+    private $imageFactory;
 
     /** @property SimpleReturnRepositoryInterface $rmaRepository */
     private $rmaRepository;
@@ -81,8 +90,10 @@ class CreateAttachmentSampleData implements DataPatchInterface
      * @param AttachmentRepositoryInterface $attachmentRepository
      * @param CollectionFactory $collectionFactory
      * @param DataObjectFactory $dataObjectFactory
+     * @param ExceptionFactory $exceptionFactory
      * @param Filesystem $filesystem
      * @param UploaderFactory $fileUploaderFactory
+     * @param AdapterFactory $imageFactory
      * @param LoggerInterface $logger
      * @param SimpleReturnRepositoryInterface $rmaRepository
      * @param array $data
@@ -94,8 +105,10 @@ class CreateAttachmentSampleData implements DataPatchInterface
         AttachmentRepositoryInterface $attachmentRepository,
         CollectionFactory $collectionFactory,
         DataObjectFactory $dataObjectFactory,
+        ExceptionFactory $exceptionFactory,
         Filesystem $filesystem,
         UploaderFactory $fileUploaderFactory,
+        AdapterFactory $imageFactory,
         LoggerInterface $logger,
         SimpleReturnRepositoryInterface $rmaRepository,
         array $data = []
@@ -105,8 +118,10 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $this->attachmentRepository = $attachmentRepository;
         $this->collectionFactory = $collectionFactory;
         $this->container = $dataObjectFactory->create($data);
+        $this->exceptionFactory = $exceptionFactory;
         $this->filesystem = $filesystem;
         $this->fileUploaderFactory = $fileUploaderFactory;
+        $this->imageFactory = $imageFactory;
         $this->logger = $logger;
         $this->rmaRepository = $rmaRepository;
     }
@@ -152,12 +167,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
         /** @var SimpleReturnInterface $rma */
         foreach ($items as $rma) {
             try {
-                /** @var array $config */
-                $config = $data[$index++] + [
-                    'rma_id' => $rma->getId(),
-                ];
-
-                $this->addMediaFiles($config);
+                $this->addMediaFiles($rma, $data[$index++]);
             } catch (Exception $e) {
                 $this->logger->critical($e->getMessage());
             }
@@ -168,18 +178,25 @@ class CreateAttachmentSampleData implements DataPatchInterface
     }
 
     /**
+     * @param SimpleReturnInterface $rma
      * @param array $data
      * @return DataPatchInterface
      */
-    private function addMediaFiles(array $data = []): DataPatchInterface
+    private function addMediaFiles(
+        SimpleReturnInterface $rma,
+        array $data = []
+    ): DataPatchInterface
     {
         /** @var array $file */
         foreach ($data as $file) {
             /** @var string $thumbnail */
             $thumbnail = $file['thumbnail'];
 
-            /** @var string $tmpFile */
-            $tmpFile = $this->createThumbTmpFile($thumbnail);
+            /** @var resource $tmpFile */
+            $tmpFile = $this->createMediaTmpFile($thumbnail);
+
+            /** @var string $tmpPath */
+            $tmpPath = $this->getStreamUri($tmpFile);
 
             /** @var array $info */
             $info = [
@@ -187,7 +204,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
                 'path' => $file['filepath'],
                 'size' => $file['filesize'],
                 'type' => $file['mimetype'],
-                'tmp_name' => $tmpFile,
+                'tmp_name' => $tmpPath,
             ];
 
             /** @var Uploader $uploader */
@@ -199,7 +216,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
                 ->setFilesDispersion(true);
 
             /** @var string $mediaPath */
-            $mediaPath = $this->getMediaAbsolutePath();
+            $mediaPath = $this->getStoreMediaAbsPath();
 
             /** @var string $savePath */
             $savePath = $mediaPath . static::SAVE_PATH;
@@ -213,6 +230,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
                 'filepath' => $result['file'],
                 'filesize' => $result['size'],
                 'mimetype' => $result['type'],
+                'rma_id' => $rma->getId(),
                 'thumbnail' => $thumbnail,
                 'token' => Tokenizer::createToken(),
             ];
@@ -221,8 +239,13 @@ class CreateAttachmentSampleData implements DataPatchInterface
             $attachment = $this->attachmentFactory
                 ->create()
                 ->addData($attachData);
+
             $this->attachmentRepository->save($attachment);
 
+            /** @var Magento\Framework\Image\Adapter\AdapterInterface $image */
+            $image = $this->imageFactory->create();
+            $image->open($result['path']);
+            $image->save($thumbnail);
         }
 
         return $this;
@@ -230,9 +253,9 @@ class CreateAttachmentSampleData implements DataPatchInterface
 
     /**
      * @param string $path
-     * @return string
+     * @return resource
      */
-    private function createThumbTmpFile(string $path): string
+    private function createMediaTmpFile(string $path)
     {
         /** @var resource $tmpFile */
         $tmpFile = tmpfile();
@@ -253,13 +276,32 @@ class CreateAttachmentSampleData implements DataPatchInterface
         fwrite($tmpFile, $content);
         fclose($handle);
 
-        return stream_get_meta_data($tmpFile)['uri'];
+        return $tmpFile;
+    }
+
+    /**
+     * @param resource $resource
+     * @return string
+     */
+    private function getStreamUri($resource): string
+    {
+        if (!is_resource($resource)) {
+            /** @var LocalizedException $exception */
+            $exception = $this->exceptionFactory->create(
+                LocalizedException::class,
+                __('Not a valid resource handle.')
+            );
+
+            throw $exception;
+        }
+
+        return stream_get_meta_data($resource)['uri'];
     }
 
     /**
      * @return string
      */
-    private function getMediaAbsolutePath(): string
+    private function getStoreMediaAbsPath(): string
     {
         /** @var string $mediaPath */
         $mediaPath = $this->filesystem
