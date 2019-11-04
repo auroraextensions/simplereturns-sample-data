@@ -59,4 +59,42 @@
             </argument>
         </arguments>
     </type>
+    <type name="AuroraExtensions\SimpleReturnsSampleData\Setup\Patch\Data\CreateAttachmentSampleData">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="0" xsi:type="array">
+                    <item name="0" xsi:type="array">
+                        <item name="filename" xsi:type="string">pants-150x150.jpg</item>
+                        <item name="filepath" xsi:type="string">/p/a/pants-150x150.jpg</item>
+                        <item name="filesize" xsi:type="number">10681</item>
+                        <item name="mimetype" xsi:type="string">image/jpeg</item>
+                        <item name="thumbnail" xsi:type="string">/resized/150x150/pants-150x150.jpg</item>
+                    </item>
+                    <item name="1" xsi:type="array">
+                        <item name="filename" xsi:type="string">zipper-150x150.jpg</item>
+                        <item name="filepath" xsi:type="string">/z/i/zipper-150x150.jpg</item>
+                        <item name="filesize" xsi:type="number">15285</item>
+                        <item name="mimetype" xsi:type="string">image/jpeg</item>
+                        <item name="thumbnail" xsi:type="string">/resized/150x150/zipper-150x150.jpg</item>
+                    </item>
+                </item>
+                <item name="1" xsi:type="array">
+                    <item name="0" xsi:type="array">
+                        <item name="filename" xsi:type="string">aurora-jeans-150x150.jpg</item>
+                        <item name="filepath" xsi:type="string">/a/u/aurora-jeans-150x150.jpg</item>
+                        <item name="filesize" xsi:type="number">13438</item>
+                        <item name="mimetype" xsi:type="string">image/jpeg</item>
+                        <item name="thumbnail" xsi:type="string">/resized/150x150/aurora-jeans-150x150.jpg</item>
+                    </item>
+                    <item name="1" xsi:type="array">
+                        <item name="filename" xsi:type="string">seam-150x150.jpg</item>
+                        <item name="filepath" xsi:type="string">/s/e/seam-150x150.jpg</item>
+                        <item name="filesize" xsi:type="number">14383</item>
+                        <item name="mimetype" xsi:type="string">image/jpeg</item>
+                        <item name="thumbnail" xsi:type="string">/resized/150x150/seam-150x150.jpg</item>
+                    </item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
 </config>
