@@ -40,6 +40,7 @@ use Magento\Framework\{
     DataObject\Factory as DataObjectFactory,
     Exception\LocalizedException,
     Filesystem,
+    Filesystem\Driver\File as FileDriver,
     Image\AdapterFactory,
     Setup\ModuleDataSetupInterface,
     Setup\Patch\DataPatchInterface
@@ -53,6 +54,12 @@ use Psr\Log\LoggerInterface;
 class CreateAttachmentSampleData implements DataPatchInterface
 {
     use DataContainerTrait, LoggerTrait;
+
+    /** @constant int BLOCKSIZE */
+    public const BLOCKSIZE = 4096;
+
+    /** @constant string FILE_MODE */
+    public const FILE_MODE = 'r';
 
     /** @constant string SAVE_PATH */
     public const SAVE_PATH = '/simplereturns/';
@@ -75,6 +82,9 @@ class CreateAttachmentSampleData implements DataPatchInterface
     /** @property Filesystem $filesystem */
     private $filesystem;
 
+    /** @property FileDriver $fileDriver */
+    private $fileDriver;
+
     /** @property UploaderFactory $fileUploaderFactory */
     private $fileUploaderFactory;
 
@@ -92,6 +102,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
      * @param DataObjectFactory $dataObjectFactory
      * @param ExceptionFactory $exceptionFactory
      * @param Filesystem $filesystem
+     * @param FileDriver $fileDriver
      * @param UploaderFactory $fileUploaderFactory
      * @param AdapterFactory $imageFactory
      * @param LoggerInterface $logger
@@ -107,6 +118,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
         DataObjectFactory $dataObjectFactory,
         ExceptionFactory $exceptionFactory,
         Filesystem $filesystem,
+        FileDriver $fileDriver,
         UploaderFactory $fileUploaderFactory,
         AdapterFactory $imageFactory,
         LoggerInterface $logger,
@@ -120,6 +132,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $this->container = $dataObjectFactory->create($data);
         $this->exceptionFactory = $exceptionFactory;
         $this->filesystem = $filesystem;
+        $this->fileDriver = $fileDriver;
         $this->fileUploaderFactory = $fileUploaderFactory;
         $this->imageFactory = $imageFactory;
         $this->logger = $logger;
@@ -152,9 +165,6 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $this->moduleDataSetup
             ->startSetup();
 
-        /** @var int $index */
-        $index = 0;
-
         /** @var array $data */
         $data = $this->getContainer()
             ->toArray();
@@ -167,7 +177,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
         /** @var SimpleReturnInterface $rma */
         foreach ($items as $rma) {
             try {
-                $this->addMediaFiles($rma, $data[$index++]);
+                $this->addMediaFiles($rma, $data);
             } catch (Exception $e) {
                 $this->logger->critical($e->getMessage());
             }
@@ -193,7 +203,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
             $thumbnail = $file['thumbnail'];
 
             /** @var resource $tmpFile */
-            $tmpFile = $this->createMediaTmpFile($thumbnail);
+            $tmpFile = $this->getMediaTmpFile($thumbnail);
 
             /** @var string $tmpPath */
             $tmpPath = $this->getStreamUri($tmpFile);
@@ -242,10 +252,13 @@ class CreateAttachmentSampleData implements DataPatchInterface
 
             $this->attachmentRepository->save($attachment);
 
-            /** @var Magento\Framework\Image\Adapter\AdapterInterface $image */
-            $image = $this->imageFactory->create();
-            $image->open($result['path']);
-            $image->save($thumbnail);
+            /** @var string $source */
+            $source = $this->getLocalMediaAbsPath() . $thumbnail;
+
+            /** @var string $target */
+            $target = $this->getStoreMediaAbsPath() . $thumbnail;
+
+            $this->fileDriver->copy($source, $target);
         }
 
         return $this;
@@ -255,7 +268,7 @@ class CreateAttachmentSampleData implements DataPatchInterface
      * @param string $path
      * @return resource
      */
-    private function createMediaTmpFile(string $path)
+    private function getMediaTmpFile(string $path)
     {
         /** @var resource $tmpFile */
         $tmpFile = tmpfile();
@@ -264,17 +277,19 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $filePath = $this->getLocalMediaAbsPath() . $path;
 
         /** @var resource $handle */
-        $handle = fopen($filePath, 'r');
+        $handle = $this->fileDriver
+            ->fileOpen($filePath, static::FILE_MODE);
 
         /** @var string $content */
         $content = '';
 
         while (!feof($handle)) {
-            $content .= fread($handle, 4096);
+            $content .= $this->fileDriver
+                ->fileRead($handle, static::BLOCKSIZE);
         }
 
-        fwrite($tmpFile, $content);
-        fclose($handle);
+        $this->fileDriver->fileWrite($tmpFile, $content);
+        $this->fileDriver->fileClose($handle);
 
         return $tmpFile;
     }
