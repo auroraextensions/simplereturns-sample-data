@@ -31,6 +31,7 @@ use AuroraExtensions\SimpleReturns\{
 };
 use AuroraExtensions\SimpleReturnsSampleData\{
     Component\DataContainerTrait,
+    Component\Filesystem\FileDriverTrait,
     Component\LoggerTrait,
     Exception\ExceptionFactory
 };
@@ -53,13 +54,16 @@ use Psr\Log\LoggerInterface;
 
 class CreateAttachmentSampleData implements DataPatchInterface
 {
-    use DataContainerTrait, LoggerTrait;
+    use DataContainerTrait, FileDriverTrait, LoggerTrait;
 
     /** @constant int BLOCKSIZE */
     public const BLOCKSIZE = 4096;
 
     /** @constant string FILE_MODE */
     public const FILE_MODE = 'r';
+
+    /** @constant int PERMS */
+    public const PERMS = 0755;
 
     /** @constant string SAVE_PATH */
     public const SAVE_PATH = '/simplereturns/';
@@ -81,9 +85,6 @@ class CreateAttachmentSampleData implements DataPatchInterface
 
     /** @property Filesystem $filesystem */
     private $filesystem;
-
-    /** @property FileDriver $fileDriver */
-    private $fileDriver;
 
     /** @property UploaderFactory $fileUploaderFactory */
     private $fileUploaderFactory;
@@ -197,6 +198,9 @@ class CreateAttachmentSampleData implements DataPatchInterface
         array $data = []
     ): DataPatchInterface
     {
+        /** @var FileDriver $fileDriver */
+        $fileDriver = $this->getFileDriver();
+
         /** @var array $file */
         foreach ($data as $file) {
             /** @var string $thumbnail */
@@ -258,7 +262,14 @@ class CreateAttachmentSampleData implements DataPatchInterface
             /** @var string $target */
             $target = $this->getStoreMediaAbsPath() . $thumbnail;
 
-            $this->fileDriver->copy($source, $target);
+            /** @var string $dirname */
+            $dirname = $fileDriver->getParentDirectory($target);
+
+            if (!$fileDriver->isExists($dirname)) {
+                $fileDriver->createDirectory($dirname, static::PERMS);
+            }
+
+            $fileDriver->copy($source, $target);
         }
 
         return $this;
@@ -270,6 +281,9 @@ class CreateAttachmentSampleData implements DataPatchInterface
      */
     private function getMediaTmpFile(string $path)
     {
+        /** @var FileDriver $fileDriver */
+        $fileDriver = $this->getFileDriver();
+
         /** @var resource $tmpFile */
         $tmpFile = tmpfile();
 
@@ -277,19 +291,18 @@ class CreateAttachmentSampleData implements DataPatchInterface
         $filePath = $this->getLocalMediaAbsPath() . $path;
 
         /** @var resource $handle */
-        $handle = $this->fileDriver
-            ->fileOpen($filePath, static::FILE_MODE);
+        $handle = $fileDriver->fileOpen($filePath, static::FILE_MODE);
 
         /** @var string $content */
         $content = '';
 
-        while (!feof($handle)) {
-            $content .= $this->fileDriver
+        while (!$fileDriver->endOfFile($handle)) {
+            $content .= $fileDriver
                 ->fileRead($handle, static::BLOCKSIZE);
         }
 
-        $this->fileDriver->fileWrite($tmpFile, $content);
-        $this->fileDriver->fileClose($handle);
+        $fileDriver->fileWrite($tmpFile, $content);
+        $fileDriver->fileClose($handle);
 
         return $tmpFile;
     }
