@@ -28,7 +28,7 @@ trait FileDriverTrait
     /**
      * @return FileDriver
      */
-    public function getDriver(): FileDriver
+    public function getFileDriver(): FileDriver
     {
         return $this->fileDriver;
     }
