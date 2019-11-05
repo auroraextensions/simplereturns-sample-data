@@ -35,7 +35,7 @@
                     <item name="status" xsi:type="string">approved</item>
                     <item name="reason" xsi:type="string">missing_broken_parts</item>
                     <item name="resolution" xsi:type="string">refund</item>
-                    <item name="comments" xsi:type="string"><![CDATA[I received the package this morning and it contains broken items.]]></item>
+                    <item name="comments" xsi:type="string"><![CDATA[I received the package this morning and the items are damaged.]]></item>
                     <item name="remote_ip" xsi:type="string">66.249.64.9</item>
                 </item>
             </argument>
