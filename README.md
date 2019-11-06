@@ -4,6 +4,7 @@ Sample data for AuroraExtensions\_SimpleReturns.
 
 ## Table of Contents
 
++ [Documentation](https://docs.auroraextensions.com/magento/extensions/2.x/sampledata/index/simplereturns/)
 + [Prerequisites](#prerequisites)
 + [Installation](#installation)
 
